@@ -26,6 +26,7 @@ public class DashboardPresenter {
     private static final String TAG = "DashBoardPresenter";
     private DashBoardActivity view;
 
+
     Context context;
     DashboardPresenter(DashBoardActivity view ,Context context) {
         this.view = view;
@@ -88,6 +89,8 @@ public class DashboardPresenter {
         public void messageArrived(String topic, MqttMessage message) throws Exception {
             Timber.d("Message received %s",message);
 //            System.out.println("Received"+message.toString());
+
+
             view.debugMsg(message.toString());
             //update(message.toString());
             //view.setReceivedMessage(message.toString());

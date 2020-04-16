@@ -4,6 +4,9 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import com.nxtgizmo.androidmqttdemo.R;
@@ -17,15 +20,24 @@ import javax.inject.Inject;
 
 import timber.log.Timber;
 import android.net.Uri;
+import android.widget.Toast;
 
 public class DashBoardActivity extends AppCompatActivity implements DashboardContract{
 
     @Inject
     MqttAndroidClient client;
     private TextView message;
+    private boolean buzzerOn   =   false;
+
+    private long firstBuzzerTimeStampInMillis   =   -1;
+
+    private long resetInterval  =   30000;
+    private boolean userActionTaken =   false;
 
     private DashboardPresenter dashboardPresenter;
 
+    private EditText edittext1, edittext2;
+    private Button buttonSum;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,6 +45,8 @@ public class DashBoardActivity extends AppCompatActivity implements DashboardCon
         setContentView(R.layout.activity_main);
 
         message = findViewById(R.id.message);
+
+        addListenerOnButton();
 
         ((MqttApp)getApplication()).getMqttComponent().inject(this);
         dashboardPresenter = new DashboardPresenter(this,getApplicationContext());
@@ -49,15 +63,60 @@ public class DashBoardActivity extends AppCompatActivity implements DashboardCon
 
     public void debugMsg(String msg) {
         final String str = msg;
-        runOnUiThread(new Runnable() {
+        String tankStatusLabel  =   "Tank Status is ";
+        int musicFileIn = 1;
+                runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 message.setText(str);
+                boolean playSound   =   false;
                 if(str.equals("FULL")){
-                    int musicFileIn =   R.raw.testfull;
-                    playSound(musicFileIn);
+                    if(userActionTaken){
+                        edittext2.setText("User has Switched Off");
+                    } else {
+                        edittext2.setText("User has Not Switched Off");
+                    }
+                    message.setText( "Tank status is full. Switch of motor");
+                    if(buzzerOn==false){
+                        Timber.d("Buzzer is false. This is first time");
+                        //FIRST TIME
+                        buzzerOn    =   true;
+                        firstBuzzerTimeStampInMillis    =   System.currentTimeMillis();
+                        playSound   =   true;
+                    } else {
+                        Timber.d("Buzzer is True.");
+                        long currentTime    =   System.currentTimeMillis();
+                        if(currentTime-firstBuzzerTimeStampInMillis>=resetInterval){
+                            //RESET FLAG
+                            Timber.d("Time to reset alamr");
+                            buzzerOn    =   false;
+                            playSound   =   true;
+                            userActionTaken =   false;
+                        } else {
+                            Timber.d("Timeout is ot over");
+                            if(userActionTaken==false){
+                                Timber.d("No user input yet");
+                                //NO USER INPUT
+                                playSound   =   true;
+                            } else {
+                                Timber.d("User input to switch off done earlier");
+                                playSound   =   false;
+                            }
+                        }
+                    }
+
+
+                    int musicFileIn =   R.raw.tankpull;
+
+                    if(playSound){
+                        playSound(musicFileIn);
+                    }
+
                 } else if(str.equals("THREEFROUTH")) {
+                    message.setText( "Tank status is three rourth. About to be filled");
                     int musicFileIn =   R.raw.testfull;
+                } else {
+                    message.setText( "Tank status "+str);
                 }
 
             }
@@ -105,5 +164,29 @@ public class DashBoardActivity extends AppCompatActivity implements DashboardCon
         super.onDestroy();
         dashboardPresenter.unSubscribeMqttChannel(client);
         dashboardPresenter.disconnectMqtt(client);
+    }
+
+
+    public void addListenerOnButton() {
+        edittext1 = (EditText) findViewById(R.id.editText1);
+        edittext2 = (EditText) findViewById(R.id.editText2);
+        buttonSum = (Button) findViewById(R.id.button);
+
+        buttonSum.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                userActionTaken=true;
+//
+//                String value1=edittext1.getText().toString();
+//                String value2=edittext2.getText().toString();
+//                int a=Integer.parseInt(value1);
+//                int b=Integer.parseInt(value2);
+//                int sum=a+b;
+//                message.setText(String.valueOf(sum));
+                edittext1.setText("Switch Of Alarm");
+                //Toast.makeText(getApplicationContext(),String.valueOf(sum), Toast.LENGTH_LONG).show();
+
+            }
+        });
     }
 }
